@@ -115,5 +115,193 @@ bool KidRobot::motor(uint8_t ch, uint8_t dir, uint8_t speed) {
 	return ret == ESP_OK;
 }
 
+double KidRobot::ultrasonic() {
+	i2c_cmd_handle_t cmd;
+	esp_err_t ret;
+	
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+	i2c_master_write_byte(cmd, 15, true);
+	i2c_master_write_byte(cmd, 0x80, true);
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	
+	if (ret != ESP_OK) {
+		return 0;
+	}
+	
+	uint16_t time_counter = 0;
+	while (time_counter < 1000) {
+		vTaskDelay(10 / portTICK_RATE_MS);
+
+		cmd = i2c_cmd_link_create();
+		i2c_master_start(cmd);
+		i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+		i2c_master_write_byte(cmd, 15, true);
+		i2c_master_stop(cmd);
+		ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+		i2c_cmd_link_delete(cmd);
+		
+		if (ret != ESP_OK) {
+			return 0;
+		}
+		
+		uint8_t data1, data2;
+		
+		cmd = i2c_cmd_link_create();
+		i2c_master_start(cmd);
+		i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_READ, true);
+		i2c_master_read_byte(cmd, &data1, I2C_MASTER_ACK); // ACK
+		i2c_master_read_byte(cmd, &data2, I2C_MASTER_LAST_NACK);  // NACK
+		i2c_master_stop(cmd);
+		ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+		i2c_cmd_link_delete(cmd);
+		
+		if (ret != ESP_OK) {
+			return 0;
+		}
+
+		if ((data1 & 0x80) == 0) {
+		  return (((data1 & 0x07)<<8) | data2) / 10.0;
+		}
+		
+		time_counter += 10;
+	}
+	
+	return 0;
+}
+
+bool KidRobot::line_sensor(uint8_t ch, uint8_t color) {
+	i2c_cmd_handle_t cmd;
+	esp_err_t ret;
+	
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+	i2c_master_write_byte(cmd, 17, true);
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+		
+	if (ret != ESP_OK) {
+		return false;
+	}
+		
+	uint8_t left_value, right_value;
+	
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_READ, true);
+	i2c_master_read_byte(cmd, &left_value, I2C_MASTER_ACK); // ACK
+	i2c_master_read_byte(cmd, &right_value, I2C_MASTER_LAST_NACK);  // NACK
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	
+	if (ret != ESP_OK) {
+		return false;
+	}
+	
+	// White = ค่าน้อย, Black = ค่าเยอะ
+	uint8_t leftside = left_value < 100 ? 2 : 1; 
+	uint8_t rightside = right_value < 100 ? 2 : 1; 
+	
+	if (ch == 1) {
+		return leftside == color;
+	} else if (ch == 2) {
+		return rightside == color;
+	} else if (ch == 3) {
+		return (leftside == color) && (rightside == color);
+	} else if (ch == 4) {
+		return (leftside != color) && (rightside != color);
+	}
+	
+	return false;
+}
+
+double KidRobot::ir_sensor() {
+	i2c_cmd_handle_t cmd;
+	esp_err_t ret;
+	
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+	i2c_master_write_byte(cmd, 20, true);
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+		
+	if (ret != ESP_OK) {
+		return false;
+	}
+		
+	uint8_t ir_data;
+	
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_READ, true);
+	i2c_master_read_byte(cmd, &ir_data, I2C_MASTER_LAST_NACK);  // NACK
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	
+	if (ret != ESP_OK) {
+		return false;
+	}
+	
+	if (ir_data != 0) {
+		cmd = i2c_cmd_link_create();
+		i2c_master_start(cmd);
+		i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+		i2c_master_write_byte(cmd, 20, true);
+		i2c_master_write_byte(cmd, 0, true);
+		i2c_master_stop(cmd);
+		ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+		i2c_cmd_link_delete(cmd);
+		
+		if (ret != ESP_OK) {
+			// return false;
+		}
+	}
+	
+	return ir_data;
+}
+
+void KidRobot::led(uint8_t num, uint32_t color) {
+	i2c_cmd_handle_t cmd;
+	esp_err_t ret;
+	
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+	i2c_master_write_byte(cmd, ((num - 1) * 3) + 2, true);
+	i2c_master_write_byte(cmd, (uint8_t)(color>>16), true);
+	i2c_master_write_byte(cmd, (uint8_t)(color>>8), true);
+	i2c_master_write_byte(cmd, (uint8_t)(color&0xFF), true);
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	
+	if (ret != ESP_OK) {
+		return;
+	}
+	
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
+	i2c_master_write_byte(cmd, 14, true);
+	i2c_master_write_byte(cmd, 0x01, true);
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+	
+	if (ret != ESP_OK) {
+		return;
+	}
+	
+}
+
 
 #endif

@@ -1,5 +1,29 @@
 var ADDONS_KIDROBOT_CLASS_BEGIN = 'DEV_I2C1.KidRobot(0, 0x65)';
 
+Blockly.JavaScript['kidrobot_ultrasonic'] = function(block) {
+	var code = ADDONS_KIDROBOT_CLASS_BEGIN + '.ultrasonic()';
+	return [code, Blockly.JavaScript.ORDER_NONE];
+};
+
+Blockly.JavaScript['kidrobot_line_sensor'] = function(block) {
+	var dropdown_ch = block.getFieldValue('ch');
+	var dropdown_color = block.getFieldValue('color');
+	var code = ADDONS_KIDROBOT_CLASS_BEGIN + '.line_sensor(' + dropdown_ch + ', ' + dropdown_color + ')';
+	return [code, Blockly.JavaScript.ORDER_NONE];
+};
+
+Blockly.JavaScript['kidrobot_ir_sensor'] = function(block) {
+	var code = ADDONS_KIDROBOT_CLASS_BEGIN + '.ir_sensor()';
+	return [code, Blockly.JavaScript.ORDER_NONE];
+};
+
+Blockly.JavaScript['kidrobot_led'] = function(block) {
+	var dropdown_n = block.getFieldValue('n');
+	var colour_color = block.getFieldValue('color').replace('#', '0x');
+	var code = ADDONS_KIDROBOT_CLASS_BEGIN + '.led(' + dropdown_n + ', ' + colour_color + ');\n';
+	return code;
+};
+
 Blockly.JavaScript['kidrobot_motor'] = function(block) {
 	var dropdown_ch = block.getFieldValue('ch');
 	var dropdown_dir = block.getFieldValue('dir');

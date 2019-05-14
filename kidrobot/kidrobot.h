@@ -47,6 +47,10 @@ class KidRobot : public Device {
 		// method
 		bool reset() ;
 		bool motor(uint8_t ch, uint8_t dir, uint8_t speed) ;
+		double ultrasonic() ;
+		bool line_sensor(uint8_t ch, uint8_t color) ;
+		double ir_sensor() ;
+		void led(uint8_t num, uint32_t color) ;
 
 		
 };
