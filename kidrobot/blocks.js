@@ -1,10 +1,10 @@
 Blockly.Blocks['kidrobot_ultrasonic'] = {
 	init: function() {
 		this.jsonInit({
-			"message0": "ultrasonic sensor get distance (cm)",
+			"message0": Blockly.Msg.KIDROBOT_ULTRASONIC_MESSAGE,
 			"output": "Number",
 			"colour": 180,
-			"tooltip": "Get distance from Ultrasonic sensor",
+			"tooltip": Blockly.Msg.KIDROBOT_ULTRASONIC_TOOLTIP,
 			"helpUrl": ""
 		});
 	}
@@ -13,22 +13,22 @@ Blockly.Blocks['kidrobot_ultrasonic'] = {
 Blockly.Blocks['kidrobot_line_sensor'] = {
 	init: function() {
 		this.jsonInit({
-			"message0": "line follower sensor detects %1 being %2",
+			"message0": Blockly.Msg.KIDROBOT_LINE_SENSOR_MESSAGE,
 			"args0": [{
 				"type": "field_dropdown",
 				"name": "ch",
 				"options": [
-					[ "leftside", "1" ],
-					[ "rightside", "2" ],
-					[ "all", "3" ],
-					[ "none", "4" ]
+					[ Blockly.Msg.KIDROBOT_LINE_SENSOR_LEFTSIDE_MESSAGE, "1" ],
+					[ Blockly.Msg.KIDROBOT_LINE_SENSOR_RIGHTSIDE_MESSAGE, "2" ],
+					[ Blockly.Msg.KIDROBOT_LINE_SENSOR_ALL_MESSAGE, "3" ],
+					[ Blockly.Msg.KIDROBOT_LINE_SENSOR_NONE_MESSAGE, "4" ]
 				]
 			}, {
 				"type": "field_dropdown",
 				"name": "color",
 				"options": [
-					[ "black", "1" ],
-					[ "white", "2" ]
+					[ Blockly.Msg.KIDROBOT_LINE_SENSOR_BLACK_MESSAGE, "1" ],
+					[ Blockly.Msg.KIDROBOT_LINE_SENSOR_WHITE_MESSAGE, "2" ]
 				]
 			}],
 			"output": [
@@ -36,7 +36,7 @@ Blockly.Blocks['kidrobot_line_sensor'] = {
 				"Boolean"
 			],
 			"colour": 180,
-			"tooltip": "",
+			"tooltip": Blockly.Msg.KIDROBOT_LINE_SENSOR_TOOLTIP,
 			"helpUrl": ""
 		});
 	}
@@ -45,10 +45,10 @@ Blockly.Blocks['kidrobot_line_sensor'] = {
 Blockly.Blocks['kidrobot_ir_sensor'] = {
 	init: function() {
 		this.jsonInit({
-			"message0": "IR message received",
+			"message0": Blockly.Msg.KIDROBOT_IR_SENSOR_MESSAGE,
 			"output": "Number",
 			"colour": 180,
-			"tooltip": "",
+			"tooltip": Blockly.Msg.KIDROBOT_IR_SENSOR_TOOLTIP,
 			"helpUrl": ""
 		});
 	}
@@ -57,7 +57,7 @@ Blockly.Blocks['kidrobot_ir_sensor'] = {
 Blockly.Blocks['kidrobot_led'] = {
 	init: function() {
 		this.jsonInit({
-			"message0": "RGB LED %1 light up %2",
+			"message0": Blockly.Msg.KIDROBOT_LED_MESSAGE,
 			"args0": [{
 				"type": "field_dropdown",
 				"name": "n",
@@ -75,7 +75,7 @@ Blockly.Blocks['kidrobot_led'] = {
 			"previousStatement": null,
 			"nextStatement": null,
 			"colour": 180,
-			"tooltip": "",
+			"tooltip": Blockly.Msg.KIDROBOT_LED_TOOLTIP,
 			"helpUrl": ""
 		});
 	}
