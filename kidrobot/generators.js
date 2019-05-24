@@ -67,7 +67,7 @@ Blockly.JavaScript['kidrobot_motor_turn_right'] = function(block) {
 Blockly.JavaScript['kidrobot_motor_spin_left'] = function(block) {
 	var value_speed = Blockly.JavaScript.valueToCode(block, 'speed', Blockly.JavaScript.ORDER_ATOMIC) || '0';
 	var code = '';
-	code += ADDONS_KIDROBOT_CLASS_BEGIN + '.motor(0, 1, ' + value_speed + ');\t';
+	code += ADDONS_KIDROBOT_CLASS_BEGIN + '.motor(0, 0, ' + value_speed + ');\t';
 	code += ADDONS_KIDROBOT_CLASS_BEGIN + '.motor(1, 0, ' + value_speed + ');\n';
 	return code;
 };
@@ -75,7 +75,7 @@ Blockly.JavaScript['kidrobot_motor_spin_left'] = function(block) {
 Blockly.JavaScript['kidrobot_motor_spin_right'] = function(block) {
 	var value_speed = Blockly.JavaScript.valueToCode(block, 'speed', Blockly.JavaScript.ORDER_ATOMIC) || '0';
 	var code = '';
-	code += ADDONS_KIDROBOT_CLASS_BEGIN + '.motor(0, 0, ' + value_speed + ');\t';
+	code += ADDONS_KIDROBOT_CLASS_BEGIN + '.motor(0, 1, ' + value_speed + ');\t';
 	code += ADDONS_KIDROBOT_CLASS_BEGIN + '.motor(1, 1, ' + value_speed + ');\n';
 	return code;
 };
