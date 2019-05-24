@@ -21,6 +21,7 @@ class KidRobot : public Device {
 	private:		
 		enum {
 			s_detect,
+			s_reset,
 			s_runing,
 			s_wait,
 			s_error
@@ -28,7 +29,9 @@ class KidRobot : public Device {
 		TickType_t tickcnt, polling_tickcnt;
 
 		// method
-
+		bool write_reg(uint8_t offset, uint8_t data) ;
+		bool write_reg(uint8_t offset, uint8_t *data, int size) ;
+		bool read_reg(uint8_t offset, uint8_t *data, int size) ;
 
 	public:
 		// constructor

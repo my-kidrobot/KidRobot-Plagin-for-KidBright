@@ -68,11 +68,25 @@ void KidRobot::process(Driver *drv) {
 				initialized = true;
 				
 				// Go to main state
-				state = s_runing;
+				state = s_reset;
 			} else {
 				state = s_error;
 			}
 			break;
+		
+		case s_reset: {
+			// Reset
+			uint8_t data[20];
+			memset(data, 0, 20);
+			
+			// Fill 0 to all register
+			write_reg(0, data, 20);
+			
+			// Trig LED
+			write_reg(14, 0x01);
+			
+			state = s_runing;
+		}
 		
 		case s_runing: {
 
@@ -102,12 +116,16 @@ void KidRobot::process(Driver *drv) {
 }
 
 // Method
-bool KidRobot::motor(uint8_t ch, uint8_t dir, uint8_t speed) {
+bool KidRobot::write_reg(uint8_t offset, uint8_t data) {
+	return write_reg(offset, &data, 1);
+}
+
+bool KidRobot::write_reg(uint8_t offset, uint8_t *data, int size) {
 	i2c_cmd_handle_t cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-	i2c_master_write_byte(cmd, ch == 1 ? 0 : 1, true);
-	i2c_master_write_byte(cmd, (dir ? 0x80 : 0)|(speed&0x7F), true);
+	i2c_master_write_byte(cmd, offset, true);
+	i2c_master_write(cmd, data, size, true);
 	i2c_master_stop(cmd);
 	esp_err_t ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
@@ -115,56 +133,57 @@ bool KidRobot::motor(uint8_t ch, uint8_t dir, uint8_t speed) {
 	return ret == ESP_OK;
 }
 
-double KidRobot::ultrasonic() {
+bool KidRobot::read_reg(uint8_t offset, uint8_t *data, int size) {
 	i2c_cmd_handle_t cmd;
 	esp_err_t ret;
 	
 	cmd = i2c_cmd_link_create();
 	i2c_master_start(cmd);
 	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-	i2c_master_write_byte(cmd, 15, true);
-	i2c_master_write_byte(cmd, 0x80, true);
+	i2c_master_write_byte(cmd, offset, true);
 	i2c_master_stop(cmd);
 	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
 	i2c_cmd_link_delete(cmd);
 	
 	if (ret != ESP_OK) {
+		return false;
+	}
+	
+	cmd = i2c_cmd_link_create();
+	i2c_master_start(cmd);
+	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_READ, true);
+	if (size > 1) {
+        i2c_master_read(cmd, data, size - 1, I2C_MASTER_ACK);
+    }
+    i2c_master_read_byte(cmd, data + size - 1, I2C_MASTER_LAST_NACK);
+	i2c_master_stop(cmd);
+	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
+	i2c_cmd_link_delete(cmd);
+		
+	return ret == ESP_OK;
+}
+
+bool KidRobot::motor(uint8_t ch, uint8_t dir, uint8_t speed) {
+	return write_reg(ch == 1 ? 0 : 1, (dir ? 0x80 : 0)|(speed&0x7F));
+}
+
+double KidRobot::ultrasonic() {
+	if (!write_reg(15, 0x80)) {
 		return 0;
 	}
+	
+	uint8_t data[2];
 	
 	uint16_t time_counter = 0;
 	while (time_counter < 1000) {
 		vTaskDelay(10 / portTICK_RATE_MS);
-
-		cmd = i2c_cmd_link_create();
-		i2c_master_start(cmd);
-		i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-		i2c_master_write_byte(cmd, 15, true);
-		i2c_master_stop(cmd);
-		ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-		i2c_cmd_link_delete(cmd);
 		
-		if (ret != ESP_OK) {
-			return 0;
-		}
-		
-		uint8_t data1, data2;
-		
-		cmd = i2c_cmd_link_create();
-		i2c_master_start(cmd);
-		i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_READ, true);
-		i2c_master_read_byte(cmd, &data1, I2C_MASTER_ACK); // ACK
-		i2c_master_read_byte(cmd, &data2, I2C_MASTER_LAST_NACK);  // NACK
-		i2c_master_stop(cmd);
-		ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-		i2c_cmd_link_delete(cmd);
-		
-		if (ret != ESP_OK) {
+		if (!read_reg(15, data, 2)) {
 			return 0;
 		}
 
-		if ((data1 & 0x80) == 0) {
-		  return (((data1 & 0x07)<<8) | data2) / 10.0;
+		if ((data[0] & 0x80) == 0) {
+		  return (((data[0] & 0x07)<<8) | data[1]) / 10.0;
 		}
 		
 		time_counter += 10;
@@ -174,35 +193,14 @@ double KidRobot::ultrasonic() {
 }
 
 bool KidRobot::line_sensor(uint8_t ch, uint8_t color) {
-	i2c_cmd_handle_t cmd;
-	esp_err_t ret;
+	uint8_t data[2];
 	
-	cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-	i2c_master_write_byte(cmd, 17, true);
-	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-		
-	if (ret != ESP_OK) {
+	if (!read_reg(17, data, 2)) {
 		return false;
 	}
-		
-	uint8_t left_value, right_value;
 	
-	cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_READ, true);
-	i2c_master_read_byte(cmd, &left_value, I2C_MASTER_ACK); // ACK
-	i2c_master_read_byte(cmd, &right_value, I2C_MASTER_LAST_NACK);  // NACK
-	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-	
-	if (ret != ESP_OK) {
-		return false;
-	}
+	uint8_t left_value = data[0];
+	uint8_t right_value = data[1];
 	
 	// White = ค่าน้อย, Black = ค่าเยอะ
 	uint8_t leftside = left_value < 100 ? 2 : 1; 
@@ -222,85 +220,33 @@ bool KidRobot::line_sensor(uint8_t ch, uint8_t color) {
 }
 
 double KidRobot::ir_sensor() {
-	i2c_cmd_handle_t cmd;
-	esp_err_t ret;
-	
-	cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-	i2c_master_write_byte(cmd, 20, true);
-	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-		
-	if (ret != ESP_OK) {
-		return false;
-	}
-		
 	uint8_t ir_data;
 	
-	cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_READ, true);
-	i2c_master_read_byte(cmd, &ir_data, I2C_MASTER_LAST_NACK);  // NACK
-	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-	
-	if (ret != ESP_OK) {
+	if (!read_reg(20, &ir_data, 1)) {
 		return false;
 	}
 	
 	if (ir_data != 0) {
-		cmd = i2c_cmd_link_create();
-		i2c_master_start(cmd);
-		i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-		i2c_master_write_byte(cmd, 20, true);
-		i2c_master_write_byte(cmd, 0, true);
-		i2c_master_stop(cmd);
-		ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-		i2c_cmd_link_delete(cmd);
-		
-		if (ret != ESP_OK) {
-			// return false;
-		}
+		write_reg(20, 0);
 	}
 	
 	return ir_data;
 }
 
 void KidRobot::led(uint8_t num, uint32_t color) {
-	i2c_cmd_handle_t cmd;
-	esp_err_t ret;
+	uint8_t data[3] = {
+		(uint8_t)(color>>16),
+		(uint8_t)(color>>8),
+		(uint8_t)(color&0xFF)
+	};
 	
-	cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-	i2c_master_write_byte(cmd, ((num - 1) * 3) + 2, true);
-	i2c_master_write_byte(cmd, (uint8_t)(color>>16), true);
-	i2c_master_write_byte(cmd, (uint8_t)(color>>8), true);
-	i2c_master_write_byte(cmd, (uint8_t)(color&0xFF), true);
-	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-	
-	if (ret != ESP_OK) {
+	// write color
+	if (!write_reg(((num - 1) * 3) + 2, data, 3)) {
 		return;
 	}
-	
-	cmd = i2c_cmd_link_create();
-	i2c_master_start(cmd);
-	i2c_master_write_byte(cmd, (address << 1) | I2C_MASTER_WRITE, true);
-	i2c_master_write_byte(cmd, 14, true);
-	i2c_master_write_byte(cmd, 0x01, true);
-	i2c_master_stop(cmd);
-	ret = i2c_master_cmd_begin(I2C_NUM_1, cmd, 1000 / portTICK_RATE_MS);
-	i2c_cmd_link_delete(cmd);
-	
-	if (ret != ESP_OK) {
-		return;
-	}
-	
+
+	// set flag
+	write_reg(14, 0x01);
 }
 
 
